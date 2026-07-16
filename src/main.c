@@ -86,7 +86,7 @@ u32 main(u8 argc, char **argv){
 		return 0;
 	}
 
-	char *task = (argc > 2) ? argv[2] : "NULL";
+	char *task = (argc > 2) ? argv[2] : "*unnamed*";
 	db(args, task);
 	return 0;
 }
@@ -142,7 +142,8 @@ void db(arg_type arg, char *task_name){
 			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 		}
 		sqlite3_finalize(stmt);
-		printf("Current task stopped.\n");
+		if(sqlite3_changes(db) == 0) printf("No running task.\n");
+		else printf("Current task stopped.\n");
 	}
 	else if(arg == ARG_CHECK_ALL){
 		sqlite3_stmt *stmt;
