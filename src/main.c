@@ -120,6 +120,7 @@ void db(arg_type arg, char *task_name){
 				fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 			}
 			sqlite3_finalize(stmt);
+			printf("Old task has been closed.\n");
 		}
 
 		sqlite3_prepare_v2(db, sql[SQL_START_SESSION], -1, &stmt, NULL);
@@ -130,6 +131,7 @@ void db(arg_type arg, char *task_name){
 			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 		}
 		sqlite3_finalize(stmt);
+		printf("Task with the name %s has been started.\n", task_name);
 	}
 	else if(arg == ARG_STOP){
 		sqlite3_stmt *stmt;
