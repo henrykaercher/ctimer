@@ -5,6 +5,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
 #include "gdef.h"
 
 typedef enum{
@@ -13,7 +14,8 @@ typedef enum{
 	ARG_STOP,
 	ARG_CHECK_ALL,
 	ARG_CHECK_CURRENT,
-	ARG_ERROR
+	ARG_ERROR,
+	ARG_WATCH
 }arg_type;
 
 typedef enum{
@@ -57,6 +59,8 @@ void db(arg_type arg, char *task_name);
 arg_type arg_holder(u8 argc, char **argv);
 void print_time(time_t timestamp);
 void print_duration(time_t duration);
+void watch(sqlite3 *db);
+u8 show_current_task(sqlite3 *db);
 
 u32 main(u8 argc, char **argv){
 	arg_type args = arg_holder(argc, argv);
@@ -76,6 +80,7 @@ u32 main(u8 argc, char **argv){
 			"    -s, -start <task>    Start a new task.\n"
 			"    -p, -stop            Stop the current task.\n"
 			"    -c, -check           Show all recorded sessions.\n"
+			"    -w, -watch           Show the current task in real time.\n"
 			"    -h, -help            Display this help message.\n"
 			"\n"
 			"DEFAULT BEHAVIOR\n"
@@ -177,26 +182,10 @@ void db(arg_type arg, char *task_name){
 		sqlite3_finalize(stmt);
 	}
 	else if(arg == ARG_CHECK_CURRENT){
-		sqlite3_stmt *stmt;
-
-		sqlite3_prepare_v2(db, sql[SQL_GET_CURRENT], -1, &stmt, NULL);
-
-		if(sqlite3_step(stmt) == SQLITE_ROW){
-			const char *task = (const char *)sqlite3_column_text(stmt, 0);
-			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
-
-			time_t duration = time(NULL) - start;
-
-			printf("%s ", task);
-			printf("\nStart: ");
-			print_time(start);
-			printf("\nDuration: ");
-			print_duration(duration);
-			printf("\n");
-		}
-		else printf("You don't have any task running. Use -h or -help if need help for using the application.\n");
-
-		sqlite3_finalize(stmt);
+		show_current_task(db);
+	}
+	else if(arg == ARG_WATCH){
+		watch(db);
 	}
 
 	sqlite3_close(db);
@@ -209,6 +198,7 @@ arg_type arg_holder(u8 argc, char **argv){
 	else if(strcmp(argv[1], "-start") == 0 || strcmp(argv[1], "-s") == 0) return ARG_START;
 	else if(strcmp(argv[1], "-stop") == 0 || strcmp(argv[1], "-p") == 0) return ARG_STOP;
 	else if(strcmp(argv[1], "-check") == 0 || strcmp(argv[1], "-c") == 0) return ARG_CHECK_ALL;
+	else if(strcmp(argv[1], "-watch") == 0 || strcmp(argv[1], "-w") == 0) return ARG_WATCH;
 	else return ARG_ERROR;
 }
 
@@ -233,4 +223,39 @@ void print_duration(time_t duration){
     int s = duration % 60;
 
     printf("%02d:%02d:%02d", h, m, s);
+}
+
+void watch(sqlite3 *db){
+	while(1){
+		if(show_current_task(db) == 1) break;;
+		printf("\033[2J\033[H");
+		sleep(1);
+	}
+}
+
+u8 show_current_task(sqlite3 *db){
+		sqlite3_stmt *stmt;
+
+		sqlite3_prepare_v2(db, sql[SQL_GET_CURRENT], -1, &stmt, NULL);
+
+		if(sqlite3_step(stmt) == SQLITE_ROW){
+			const char *task = (const char *)sqlite3_column_text(stmt, 0);
+			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
+
+			time_t duration = time(NULL) - start;
+
+			printf("%s ", task);
+			printf("\nStart: ");
+			print_time(start);
+			printf("\nDuration: ");
+			print_duration(duration);
+			printf("\n");
+		}
+		else{
+			printf("You don't have any task running. Use -h or -help if need help for using the application.\n");
+			return 1;
+		}
+
+		sqlite3_finalize(stmt);
+		return 0;
 }
