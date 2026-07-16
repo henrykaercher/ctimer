@@ -8,13 +8,15 @@ typedef enum{
 	ARG_HELP,
 	ARG_START,
 	ARG_STOP,
-	ARG_CHECK_ALL
+	ARG_CHECK_ALL,
+	ARG_CHECK_CURRENT
 }arg_type;
 
 typedef enum{
     SQL_CREATE_TABLE,
     SQL_START_SESSION,
     SQL_STOP_SESSION,
+	SQL_GET_ALL,
     SQL_GET_CURRENT,
     SQL_QUERY_COUNT
 } sql_query;
@@ -36,9 +38,15 @@ static const char *sql[SQL_QUERY_COUNT] = {
 		"SET end = ? "
 		"WHERE end IS NULL;",
 
+	[SQL_GET_ALL] =
+		"SELECT task, start, end "
+		"FROM sessions;",
+
 	[SQL_GET_CURRENT] =
-		"SELECT id, task, start, end "
-		"FROM sessions;"
+		"SELECT task, start, end "
+		"FROM sessions "
+		"WHERE end IS NULL "
+		"ORDER BY id DESC LIMIT 1;"
 };
 
 void db(arg_type arg, char *task_name);
@@ -47,8 +55,8 @@ arg_type arg_holder(u8 argc, char **argv);
 u32 main(u8 argc, char **argv){
 	arg_type args = arg_holder(argc, argv);
 
-	printf("%d\n", args);
-	char *task = (argc > 2) ? argv[2] : NULL;
+	//printf("%d\n", args);
+	char *task = (argc > 2) ? argv[2] : "NULL";
 	db(args, task);
 	return 0;
 }
@@ -92,15 +100,28 @@ void db(arg_type arg, char *task_name){
 	else if(arg == ARG_CHECK_ALL){
 		sqlite3_stmt *stmt;
 
+		sqlite3_prepare_v2(db, sql[SQL_GET_ALL], -1, &stmt, NULL);
+
+		if(sqlite3_step(stmt) == SQLITE_ROW){
+			const char *task = (const char *)sqlite3_column_text(stmt, 0);
+			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
+			sqlite3_int64 end = sqlite3_column_int64(stmt, 2);
+
+			printf("%s %lld %lld\n", task, start, end);
+		}
+
+		sqlite3_finalize(stmt);
+	}
+	else if(arg == ARG_CHECK_CURRENT){
+		sqlite3_stmt *stmt;
+
 		sqlite3_prepare_v2(db, sql[SQL_GET_CURRENT], -1, &stmt, NULL);
 
 		while(sqlite3_step(stmt) == SQLITE_ROW){
-			int id = sqlite3_column_int(stmt, 0);
-			const char *task = (const char *)sqlite3_column_text(stmt, 1);
-			sqlite3_int64 start = sqlite3_column_int64(stmt, 2);
-			sqlite3_int64 end = sqlite3_column_int64(stmt, 3);
+			const char *task = (const char *)sqlite3_column_text(stmt, 0);
+			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
 
-			printf("%d %s %lld %lld\n", id, task, start, end);
+			printf("%s %lld\n", task, start);
 		}
 
 		sqlite3_finalize(stmt);
@@ -110,24 +131,15 @@ void db(arg_type arg, char *task_name){
 }
 
 arg_type arg_holder(u8 argc, char **argv){
-	arg_type arg = ARG_HELP;
-	if(argc <= 1){
-		printf("Not enough arguments. \n");
-		return arg;
-	}
+  if(argc < 2) return ARG_CHECK_CURRENT;
 
-	if(strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "-h") == 0){
-		arg = ARG_HELP;
-	}
-	else if(strcmp(argv[1], "-start") == 0 || strcmp(argv[1], "-s") == 0){
-		arg = ARG_START;
-	}
-	else if(strcmp(argv[1], "-stop") == 0 || strcmp(argv[1], "-p") == 0){
-		arg = ARG_STOP;
-	}
-	else if(strcmp(argv[1], "-check") == 0 || strcmp(argv[1], "-c") == 0){
-		arg = ARG_CHECK_ALL;
-	}
+    if(strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "-h") == 0) return ARG_HELP;
 
-	return arg;
+    if(strcmp(argv[1], "-start") == 0 || strcmp(argv[1], "-s") == 0) return ARG_START;
+
+    if(strcmp(argv[1], "-stop") == 0 || strcmp(argv[1], "-p") == 0) return ARG_STOP;
+
+    if(strcmp(argv[1], "-check") == 0 || strcmp(argv[1], "-c") == 0) return ARG_CHECK_ALL;
+
+    return ARG_HELP;
 }
