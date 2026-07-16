@@ -9,7 +9,8 @@ typedef enum{
 	ARG_START,
 	ARG_STOP,
 	ARG_CHECK_ALL,
-	ARG_CHECK_CURRENT
+	ARG_CHECK_CURRENT,
+	ARG_ERROR
 }arg_type;
 
 typedef enum{
@@ -51,11 +52,40 @@ static const char *sql[SQL_QUERY_COUNT] = {
 
 void db(arg_type arg, char *task_name);
 arg_type arg_holder(u8 argc, char **argv);
+void print_time(time_t timestamp);
+void print_duration(time_t duration);
 
 u32 main(u8 argc, char **argv){
 	arg_type args = arg_holder(argc, argv);
+	if(args == ARG_ERROR){
+		fprintf(stderr, "Argument not supported, use -h or -help to see the help page.\n");
+		return 1;
+	}
 
-	//printf("%d\n", args);
+	if(args == ARG_HELP){
+		printf(
+			"ctimer - Simple CLI time tracker\n"
+			"\n"
+			"USAGE\n"
+			"    ctimer [OPTION] [TASK]\n"
+			"\n"
+			"OPTIONS\n"
+			"    -s, -start <task>    Start a new task.\n"
+			"    -p, -stop            Stop the current task.\n"
+			"    -c, -check           Show all recorded sessions.\n"
+			"    -h, -help            Display this help message.\n"
+			"\n"
+			"DEFAULT BEHAVIOR\n"
+			"    Running \"ctimer\" without arguments shows the current\n"
+			"    active task and its elapsed time.\n"
+			"\n"
+			"NOTES\n"
+			"    Only one task can be active at a time.\n"
+			"    Starting a new task automatically stops the previous one.\n"
+		);
+		return 0;
+	}
+
 	char *task = (argc > 2) ? argv[2] : "NULL";
 	db(args, task);
 	return 0;
@@ -110,6 +140,7 @@ void db(arg_type arg, char *task_name){
 			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 		}
 		sqlite3_finalize(stmt);
+		printf("Current task stopped.\n");
 	}
 	else if(arg == ARG_CHECK_ALL){
 		sqlite3_stmt *stmt;
@@ -121,7 +152,11 @@ void db(arg_type arg, char *task_name){
 			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
 			sqlite3_int64 end = sqlite3_column_int64(stmt, 2);
 
-			printf("%s %lld %lld\n", task, start, end);
+			printf("%s ", task);
+			print_time(start);
+			printf(" -> ");
+			print_time(end);
+			printf("\n");
 		}
 
 		sqlite3_finalize(stmt);
@@ -135,8 +170,16 @@ void db(arg_type arg, char *task_name){
 			const char *task = (const char *)sqlite3_column_text(stmt, 0);
 			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
 
-			printf("%s %lld\n", task, start);
+			time_t duration = time(NULL) - start;
+
+			printf("%s ", task);
+			printf("\nStart: ");
+			print_time(start);
+			printf("\nDuration: ");
+			print_duration(duration);
+			printf("\n");
 		}
+		else printf("You don't have any task running. Use -h or -help if need help for using the application.\n");
 
 		sqlite3_finalize(stmt);
 	}
@@ -148,12 +191,31 @@ arg_type arg_holder(u8 argc, char **argv){
   if(argc < 2) return ARG_CHECK_CURRENT;
 
     if(strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "-h") == 0) return ARG_HELP;
+	else if(strcmp(argv[1], "-start") == 0 || strcmp(argv[1], "-s") == 0) return ARG_START;
+	else if(strcmp(argv[1], "-stop") == 0 || strcmp(argv[1], "-p") == 0) return ARG_STOP;
+	else if(strcmp(argv[1], "-check") == 0 || strcmp(argv[1], "-c") == 0) return ARG_CHECK_ALL;
+	else return ARG_ERROR;
+}
 
-    if(strcmp(argv[1], "-start") == 0 || strcmp(argv[1], "-s") == 0) return ARG_START;
+void print_time(time_t timestamp){
+    struct tm *tm = localtime(&timestamp);
 
-    if(strcmp(argv[1], "-stop") == 0 || strcmp(argv[1], "-p") == 0) return ARG_STOP;
+	if(timestamp == 0) printf("--running--");
+	else{
+		printf("%02d/%02d/%04d %02d:%02d:%02d",
+			   tm->tm_mday,
+			   tm->tm_mon + 1,
+			   tm->tm_year + 1900,
+			   tm->tm_hour,
+			   tm->tm_min,
+			   tm->tm_sec);
+	}
+}
 
-    if(strcmp(argv[1], "-check") == 0 || strcmp(argv[1], "-c") == 0) return ARG_CHECK_ALL;
+void print_duration(time_t duration){
+    int h = duration / 3600;
+    int m = (duration % 3600) / 60;
+    int s = duration % 60;
 
-    return ARG_HELP;
+    printf("%02d:%02d:%02d", h, m, s);
 }
