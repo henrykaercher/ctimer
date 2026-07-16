@@ -78,6 +78,20 @@ void db(arg_type arg, char *task_name){
 
 	if(arg == ARG_START){
 		sqlite3_stmt *stmt;
+
+		sqlite3_prepare_v2(db, sql[SQL_GET_CURRENT], -1, &stmt, NULL);
+		u8 has_current = (sqlite3_step(stmt) == SQLITE_ROW);
+		sqlite3_finalize(stmt);
+		if(has_current){
+			sqlite3_prepare_v2(db, sql[SQL_STOP_SESSION], -1, &stmt, NULL);
+			sqlite3_bind_int64(stmt, 1, time(NULL));
+
+			if(sqlite3_step(stmt) != SQLITE_DONE){
+				fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+			}
+			sqlite3_finalize(stmt);
+		}
+
 		sqlite3_prepare_v2(db, sql[SQL_START_SESSION], -1, &stmt, NULL);
 		sqlite3_bind_text(stmt, 1, task_name, -1, SQLITE_TRANSIENT);
 		sqlite3_bind_int64(stmt, 2, time(NULL));
@@ -102,7 +116,7 @@ void db(arg_type arg, char *task_name){
 
 		sqlite3_prepare_v2(db, sql[SQL_GET_ALL], -1, &stmt, NULL);
 
-		if(sqlite3_step(stmt) == SQLITE_ROW){
+		while(sqlite3_step(stmt) == SQLITE_ROW){
 			const char *task = (const char *)sqlite3_column_text(stmt, 0);
 			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
 			sqlite3_int64 end = sqlite3_column_int64(stmt, 2);
@@ -117,7 +131,7 @@ void db(arg_type arg, char *task_name){
 
 		sqlite3_prepare_v2(db, sql[SQL_GET_CURRENT], -1, &stmt, NULL);
 
-		while(sqlite3_step(stmt) == SQLITE_ROW){
+		if(sqlite3_step(stmt) == SQLITE_ROW){
 			const char *task = (const char *)sqlite3_column_text(stmt, 0);
 			sqlite3_int64 start = sqlite3_column_int64(stmt, 1);
 
