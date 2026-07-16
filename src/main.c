@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <sqlite3.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include "gdef.h"
 
 typedef enum{
@@ -94,8 +97,17 @@ u32 main(u8 argc, char **argv){
 void db(arg_type arg, char *task_name){
 	sqlite3 *db;
 	char *err;
+	char dir[522];
+	char path[522];
 
-	if(sqlite3_open("tracker.db", &db) != SQLITE_OK){
+	snprintf(dir, sizeof(path), "%s/.local/share/ctimer", getenv("HOME"));
+	snprintf(path, sizeof(path), "%s/ctimer.db", dir);
+	if(mkdir(dir, 0755) == -1 && errno != EEXIST){
+		perror("mkdir");
+		return;
+	}
+
+	if(sqlite3_open(path, &db) != SQLITE_OK){
 		printf("Error on opening db. \n");
 		return;
 	}
