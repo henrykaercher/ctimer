@@ -37,9 +37,8 @@ static const char *sql[SQL_QUERY_COUNT] = {
 		"WHERE end IS NULL;",
 
 	[SQL_GET_CURRENT] =
-		"SELECT id, task, start "
-		"FROM sessions "
-		"WHERE end IS NULL;"
+		"SELECT id, task, start, end "
+		"FROM sessions;"
 };
 
 void db(arg_type arg, char *task_name);
@@ -81,10 +80,14 @@ void db(arg_type arg, char *task_name){
 		sqlite3_finalize(stmt);
 	}
 	else if(arg == ARG_STOP){
-		if(sqlite3_exec(db, sql[SQL_STOP_SESSION], NULL, NULL, &err) != SQLITE_OK){
-			fprintf(stderr, "%s\n", err);
-			sqlite3_free(err);
+		sqlite3_stmt *stmt;
+		sqlite3_prepare_v2(db, sql[SQL_STOP_SESSION], -1, &stmt, NULL);
+		sqlite3_bind_int64(stmt, 1, time(NULL));
+
+		if(sqlite3_step(stmt) != SQLITE_DONE){
+			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 		}
+		sqlite3_finalize(stmt);
 	}
 	else if(arg == ARG_CHECK_ALL){
 		sqlite3_stmt *stmt;
@@ -95,8 +98,9 @@ void db(arg_type arg, char *task_name){
 			int id = sqlite3_column_int(stmt, 0);
 			const char *task = (const char *)sqlite3_column_text(stmt, 1);
 			sqlite3_int64 start = sqlite3_column_int64(stmt, 2);
+			sqlite3_int64 end = sqlite3_column_int64(stmt, 3);
 
-			printf("%d %s %lld\n", id, task, start);
+			printf("%d %s %lld %lld\n", id, task, start, end);
 		}
 
 		sqlite3_finalize(stmt);
