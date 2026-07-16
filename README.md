@@ -4,6 +4,7 @@ Simple CLI time tracker written in C using SQLite.
 
 ctimer is a lightweight terminal application for tracking daily activities. 
 Instead of scheduling tasks by fixed hours, it records how much time is spent on each activity.
+Built for speed and minimal footprint. It runs instantly and consumes virtually zero system resources compared to bloated GUI trackers.
 
 ## Features
 
@@ -27,6 +28,7 @@ ctimer [OPTION] [TASK]
 -s, -start <task>    Start a new task.
 -p, -stop            Stop the current task.
 -c, -check           Show all recorded sessions.
+-w, -watch           Show the current task in real time.
 -h, -help            Display this help message.
 ```
 
@@ -90,19 +92,36 @@ Only one task can be active at a time. Starting a new task automatically finishe
 
 Requirements:
 
-- GCC
+- CC if you will use the script, or just any C compiler
 - SQLite3 development library
+
+Example for requirements:
+```bash
+sudo apt install libsqlite3-dev
+```
+
+Or:
+```bash
+sudo pacman -S sqlite3
+```
 
 Example:
 
 ```bash
-./build.sh make
+./scripts/build.sh make
 ```
+I decided to not use Makefile and just use scripts to avoid dependencies.
 
 or manually:
 
 ```bash
-gcc -std=c11 -Wall -Wextra -Wpedantic src/*.c -lsqlite3 -o bin/ctimer
+cc -std=c11 -Wall -Wextra -Wpedantic src/*.c -lsqlite3 -o bin/ctimer
+```
+
+## Installation
+```bash
+chmod +x ./scripts/install.sh
+./scripts/install.sh
 ```
 
 ## Database
