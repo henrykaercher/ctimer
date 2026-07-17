@@ -25,11 +25,13 @@ ctimer [OPTION] [TASK]
 ## Options
 
 ```
--s, -start <task>    Start a new task.
--p, -stop            Stop the current task.
--c, -check           Show all recorded sessions.
--w, -watch           Show the current task in real time.
--h, -help            Display this help message.
+-s, --start <task>          Start a new task.
+-p, --stop                  Stop the current task.
+-c, --check                 Show all recorded sessions.
+-w, --watch                 Show the current task in real time.
+-d, --delete <id>           Delete a session by its ID.\n"
+-r, --remove-name <task>	Remove all sessions with the same name.\n"
+-h, --help                  Display this help message.
 ```
 
 ## Examples
